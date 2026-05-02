@@ -1,0 +1,352 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// CORE USER MODEL
+// ─────────────────────────────────────────────
+model User {
+  id               String         @id @default(uuid())
+  email            String         @unique
+  name             String?                               // display name from signup
+  passwordHash     String?
+  role             String         @default("user")       // legacy compat: "user" | "admin"
+  adminRole        String         @default("user")       // "super_admin" | "admin" | "support" | "user"
+  plan             String         @default("free")
+  twoFactorSecret  String?                               // speakeasy TOTP secret, null until enrolled
+  twoFactorEnabled Boolean        @default(false)
+  bandwidthLimitMb  Int            @default(0)            // 0 = unlimited
+  emailVerified     Boolean        @default(false)
+  verifyToken       String?        @unique
+  resetToken        String?        @unique
+  resetTokenExpiry  DateTime?
+  googleId          String?        @unique
+  phoneNumber       String?        @unique
+  phoneVerified     Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  referralCode     String?        @unique
+  referredBy       String?                               // userId of referrer
+  freeMonthsEarned Int            @default(0)
+
+  // Relations
+  peers            VpnPeer[]
+  openVpnCerts     OpenVpnCert[]
+  subscription     Subscription?
+  auditLogs        AuditLog[]
+  settings         UserSettings?
+  sessions         UserSession[]
+}
+
+// ─────────────────────────────────────────────
+// VPN PEER (WireGuard-extended)
+// ─────────────────────────────────────────────
+model VpnPeer {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type           String                                  // "wireguard" | "openvpn"
+
+  // WireGuard fields
+  publicKey      String?   @unique
+  presharedKey   String?                                 // optional WG PSK
+  allowedIps     String    @default("0.0.0.0/0")
+  endpoint       String?                                 // last known client endpoint ip:port
+  lastHandshake  DateTime?
+  bytesRx        BigInt    @default(0)
+  bytesTx        BigInt    @default(0)
+
+  // Shared
+  certName       String?   @unique                      // used by openvpn path
+  assignedIp     String    @unique
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+}
+
+// ─────────────────────────────────────────────
+// OPENVPN CERTIFICATE MANAGEMENT
+// ─────────────────────────────────────────────
+model OpenVpnCert {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  certName    String    @unique
+  commonName  String
+  isRevoked   Boolean   @default(false)
+  revokedAt   DateTime?
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+}
+
+// ─────────────────────────────────────────────
+// SERVER (SSH + real-time stats extended)
+// ─────────────────────────────────────────────
+model Server {
+  id             String   @id @default(uuid())
+  country        String
+  city           String
+  ip             String   @unique
+  protocol       String
+  load           Int      @default(0)
+  isActive       Boolean  @default(true)
+  manualOverride Boolean  @default(false)
+  lastSeen       DateTime @default(now())
+
+  // SSH access
+  sshUser        String?
+  sshPort        Int      @default(22)
+
+  // Real-time stats (written by Socket.io health poller)
+  cpuUsage       Float    @default(0)
+  ramUsage       Float    @default(0)
+  bytesIn        BigInt   @default(0)
+  bytesOut       BigInt   @default(0)
+}
+
+// ─────────────────────────────────────────────
+// SUBSCRIPTION
+// ─────────────────────────────────────────────
+model Subscription {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeCustomerId String?  @unique
+  plan             String
+  status           String
+  expiresAt        DateTime
+}
+
+// ─────────────────────────────────────────────
+// AUDIT LOG (severity + metadata extended)
+// ─────────────────────────────────────────────
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  ipAddress String?
+  severity  String   @default("info")                   // "info" | "warn" | "critical"
+  metadata  String?                                      // JSON string for extra context
+  createdAt DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────
+// SYSTEM SETTINGS (key/value store)
+// ─────────────────────────────────────────────
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique                            // e.g. "smtp_host", "brand_name", "geo_block_enabled"
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// ALERT RULES
+// ─────────────────────────────────────────────
+model AlertRule {
+  id          String    @id @default(uuid())
+  type        String                                     // "server_down" | "cert_expiry" | "bandwidth_exceeded"
+  target      String                                     // serverId | userId | certId
+  threshold   Int?                                       // days before expiry, or MB limit
+  isEnabled   Boolean   @default(true)
+  lastFiredAt DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+// ─────────────────────────────────────────────
+// USER DEVICES (per-user VPN configs)
+// ─────────────────────────────────────────────
+model UserDevice {
+  id           String   @id @default(cuid())
+  userId       String?                                   // null = anonymous download
+  deviceName   String
+  protocol     String                                    // "openvpn" | "wireguard"
+  serverId     String
+  wgPublicKey  String?
+  wgPrivateKey String?                                   // encrypted
+  assignedIP   String?
+  isRevoked    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  bandwidthLogs BandwidthLog[]
+}
+
+// ─────────────────────────────────────────────
+// VPN CREDENTIALS (shared OpenVPN auth)
+// ─────────────────────────────────────────────
+model VpnCredentials {
+  id        String   @id @default(cuid())
+  protocol  String                                       // "openvpn"
+  username  String
+  password  String
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// USER SETTINGS
+// ─────────────────────────────────────────────
+model UserSettings {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  defaultProtocol      String   @default("wireguard")
+  ovpnPort             String   @default("udp1194")
+  wgAllowedIPs         String   @default("0.0.0.0/0")
+  wgKeepalive          Int      @default(25)
+  dnsServer            String   @default("1.1.1.1,1.0.0.1")
+  killSwitch           Boolean  @default(true)
+  ipv6Leak             Boolean  @default(true)
+  dnsLeakProtection    Boolean  @default(true)
+  obfuscation          Boolean  @default(false)
+  preferredRegion      String   @default("auto")
+  emailNotifications   Boolean  @default(true)
+  notifyPasswordChange Boolean  @default(true)
+  notifyNewConfig      Boolean  @default(true)
+  notifyDeviceRevoked  Boolean  @default(true)
+  notifyExpiry         Boolean  @default(true)
+  notifyUsageReport    Boolean  @default(false)
+  notifyNewServers     Boolean  @default(false)
+  notifyNewDevice      Boolean  @default(true)
+  notifyNewsletter     Boolean  @default(false)
+  allowAnalytics       Boolean  @default(true)
+  analyticsCookies     Boolean  @default(false)
+  country              String   @default("")
+  timezone             String   @default("UTC")
+  username             String?
+  backupCodes          String[] @default([])
+}
+
+// ─────────────────────────────────────────────
+// SITE SETTINGS
+// ─────────────────────────────────────────────
+model SiteSettings {
+  id                    String   @id @default("site-config")
+  siteName              String   @default("ZeroTraceVPN")
+  tagline               String   @default("")
+  contactEmail          String   @default("")
+  supportEmail          String   @default("")
+  logoUrl               String   @default("")
+  maintenanceMode       Boolean  @default(false)
+  maintenanceMsg        String   @default("")
+  allowedMaintenanceIPs String   @default("")
+  announcementText      String   @default("")
+  announcementOn        Boolean  @default(false)
+  announcementType      String   @default("info")
+  registrationOpen      Boolean  @default(true)
+  requireVerify         Boolean  @default(true)
+  allowAnonymous        Boolean  @default(true)
+  anonDailyLimit        Int      @default(5)
+  defaultPlan           String   @default("free")
+  autoDeleteUnverified  Boolean  @default(false)
+  autoDeleteDays        Int      @default(7)
+  maxDevicesFree        Int      @default(1)
+  maxDevicesPro         Int      @default(10)
+  bannedDomains         String   @default("")
+  bannedIPs             String   @default("")
+  stripeKey             String   @default("")
+  stripeSecret          String   @default("")
+  stripeWebhook         String   @default("")
+  paypalClientId        String   @default("")
+  paypalSecret          String   @default("")
+  paypalMode            String   @default("sandbox")
+  btcAddress            String   @default("")
+  ethAddress            String   @default("")
+  usdtTrc20             String   @default("")
+  usdtErc20             String   @default("")
+  showCrypto            Boolean  @default(false)
+  currency              String   @default("USD")
+  taxRate               Float    @default(0)
+  trialDays             Int      @default(0)
+  smtpHost              String   @default("")
+  smtpPort              Int      @default(587)
+  smtpEncryption        String   @default("tls")
+  smtpUser              String   @default("")
+  smtpPass              String   @default("")
+  smtpFromName          String   @default("")
+  smtpFromEmail         String   @default("")
+  slackWebhook          String   @default("")
+  discordWebhook        String   @default("")
+  customWebhook         String   @default("")
+  notifyNewUser         Boolean  @default(true)
+  notifyPayment         Boolean  @default(true)
+  notifyServerDown      Boolean  @default(true)
+  notifyFailedLogins    Boolean  @default(true)
+  notifyTicket          Boolean  @default(false)
+  notifyAbuse           Boolean  @default(false)
+  jwtExpiryHours        Int      @default(24)
+  maxLoginFails         Int      @default(5)
+  lockoutMinutes        Int      @default(30)
+  adminAllowedIPs       String   @default("")
+  rateLimit             Int      @default(100)
+  force2FAAdmin         Boolean  @default(false)
+  corsOrigins           String   @default("")
+  bcryptRounds          Int      @default(12)
+  logRetentionDays      Int      @default(30)
+  bandwidthLogging      Boolean  @default(true)
+  pingInterval          Int      @default(5)
+  serverLoadAlert       Int      @default(90)
+  alertEmail            String   @default("")
+  grafanaUrl            String   @default("")
+  gdprMode              Boolean  @default(false)
+  cookieBanner          Boolean  @default(true)
+  gdprEmail             String   @default("")
+  proxyEnabled          Boolean  @default(false)
+  proxyPublic           Boolean  @default(false)
+  proxyRateLimit        Int      @default(100)
+  privacyPolicy         String   @default("")
+  termsOfService        String   @default("")
+  noLogsPolicy          String   @default("")
+  cookiePolicy          String   @default("")
+  warrantCanaryDate     String   @default("")
+  warrantCanaryText     String   @default("")
+  wgPort                Int      @default(51820)
+  wgDns                 String   @default("1.1.1.1, 1.0.0.1")
+  wgAllowedIPs          String   @default("0.0.0.0/0")
+  wgKeepalive           Int      @default(25)
+  wgClientPool          String   @default("10.8.0.0/24")
+  wgAutoAddPeer         Boolean  @default(true)
+  wgAutoRemove          Boolean  @default(false)
+  wgAutoRemoveDays      Int      @default(30)
+  wgKeyRotation         Boolean  @default(false)
+  wgKeyRotationDays     Int      @default(90)
+  ovpnUsername          String   @default("vpnuser")
+  ovpnPassword          String   @default("")
+  ovpnRotation          String   @default("manual")
+  ovpnNotifyChange      Boolean  @default(true)
+}
+
+// ─────────────────────────────────────────────
+// USER SESSIONS
+// ─────────────────────────────────────────────
+model UserSession {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash    String   @unique                          // sha256 of the refresh token
+  deviceName   String   @default("Unknown Device")
+  browser      String   @default("Unknown")
+  os           String   @default("Unknown")
+  ipAddress    String   @default("unknown")
+  isRevoked    Boolean  @default(false)
+  lastActiveAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────
+// BANDWIDTH LOG
+// ─────────────────────────────────────────────
+model BandwidthLog {
+  id        String     @id @default(cuid())
+  userId    String
+  deviceId  String
+  device    UserDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  bytesUp   BigInt     @default(0)
+  bytesDown BigInt     @default(0)
+  loggedAt  DateTime   @default(now())
+}
