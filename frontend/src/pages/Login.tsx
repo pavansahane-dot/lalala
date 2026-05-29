@@ -8,7 +8,7 @@ import { useLanguage } from '../context/LanguageContext';
 type Step = 'credentials' | '2fa' | 'phone' | 'phone-otp';
 type Tab  = 'email' | 'phone';
 
-const GOOGLE_AUTH_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/oauth/google`;
+const GOOGLE_AUTH_URL = `${import.meta.env.VITE_API_URL || '/api'}/oauth/google`;
 
 const Login = () => {
   const [tab, setTab]               = useState<Tab>('email');

@@ -1,0 +1,50 @@
+name: Deploy to Azure
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: vpn-app-web
+  RESOURCE_GROUP: vpn-app-rg
+  ACR_NAME: vpnappregistry
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Login to Azure Container Registry
+      uses: azure/docker-login@v1
+      with:
+        login-server: ${{ env.ACR_NAME }}.azurecr.io
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+
+    - name: Build and push backend image
+      run: |
+        docker build -t ${{ env.ACR_NAME }}.azurecr.io/vpn-backend:${{ github.sha }} ./backend
+        docker push ${{ env.ACR_NAME }}.azurecr.io/vpn-backend:${{ github.sha }}
+
+    - name: Build and push frontend image
+      run: |
+        docker build -t ${{ env.ACR_NAME }}.azurecr.io/vpn-frontend:${{ github.sha }} ./frontend
+        docker push ${{ env.ACR_NAME }}.azurecr.io/vpn-frontend:${{ github.sha }}
+
+    - name: Deploy to Azure Web App
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        images: ${{ env.ACR_NAME }}.azurecr.io/vpn-frontend:${{ github.sha }}
+
+    - name: Logout from Azure
+      run: az logout

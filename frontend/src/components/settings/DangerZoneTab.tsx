@@ -37,7 +37,7 @@ const DangerZoneTab = () => {
         <div className="p-6 border-b border-red-500/30 bg-red-500/5">
           <h2 className="text-xl font-bold text-red-400 flex items-center gap-2">
             <AlertTriangle className="w-5 h-5" />
-            Danger Zone
+            Delete Account
           </h2>
         </div>
 

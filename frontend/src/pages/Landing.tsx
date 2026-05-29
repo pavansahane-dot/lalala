@@ -42,6 +42,15 @@ const PublicFooter = () => {
           </div>
           {/* Support */}
           <div className="flex-1">
+            <h4 className="text-white text-xs font-bold uppercase tracking-widest mb-4">Support</h4>
+            <ul className="space-y-3 text-sm">
+              <li><Link to="/contact" className="hover:text-white transition-colors">Contact Us</Link></li>
+              <li><Link to="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+              <li><Link to="/terms-of-service" className="hover:text-white transition-colors">Terms of Service</Link></li>
+            </ul>
+          </div>
+          {/* Donate */}
+          <div className="flex-1">
             <h4 className="text-white text-xs font-bold uppercase tracking-widest mb-4">Support Us</h4>
             <p className="text-sm mb-4 leading-relaxed">This service is completely free. Help us keep the servers running.</p>
             <a href="https://paypal.me" target="_blank" rel="noreferrer"

@@ -19,7 +19,7 @@ const tabs = [
   { id: 'notifications' as TabId, label: 'Notifications', icon: Bell },
   { id: 'privacy' as TabId, label: 'Privacy & Data', icon: Lock },
   { id: 'billing' as TabId, label: 'Billing', icon: CreditCard },
-  { id: 'danger' as TabId, label: 'Danger Zone', icon: AlertTriangle },
+  { id: 'danger' as TabId, label: 'Delete Account', icon: AlertTriangle },
 ];
 
 const Settings = () => {

@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react';
 import { Lock, Download, Eye, Cookie, Loader2, Check } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '../../store/authStore';
 
 const PrivacyTab = () => {
+  const user = useAuthStore(s => s.user);
+  const isAdmin = user?.role === 'admin';
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [activityLog, setActivityLog] = useState<any[]>([]);
@@ -134,7 +137,8 @@ const PrivacyTab = () => {
         </div>
       </div>
 
-      {/* Account Activity Log */}
+      {/* Account Activity Log — admin only */}
+      {isAdmin && (
       <div className="bg-white rounded-lg border border-gray-200">
         <div className="p-6 border-b border-gray-200">
           <h2 className="text-xl font-bold text-[#16191f] flex items-center gap-2">
@@ -177,6 +181,7 @@ const PrivacyTab = () => {
           </table>
         </div>
       </div>
+      )}
 
       {/* Cookie Preferences */}
       <div className="bg-white rounded-lg border border-gray-200">

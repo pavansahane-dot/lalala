@@ -23,6 +23,7 @@ const vpnRoutes = require('./routes/vpn');
 const oauthRoutes = require('./routes/oauth');
 const userSettingsRoutes = require('./routes/userSettings');
 const adminSettingsRoutes = require('./routes/adminSettings');
+const contactRoutes = require('./routes/contact');
 
 // Import Services
 const { startHealthMonitoring } = require('./services/healthCheck');
@@ -36,7 +37,7 @@ const httpServer = http.createServer(app);
 // --- Socket.io Setup ---
 const io = new Server(httpServer, {
     cors: {
-        origin: 'http://localhost:5173',
+        origin: process.env.NODE_ENV === 'production' ? [process.env.APP_URL, 'http://72.155.88.91', 'http://zerotracevpn.com', 'https://zerotracevpn.com'] : 'http://localhost:5173',
         methods: ['GET', 'POST'],
         credentials: true
     }
@@ -65,9 +66,10 @@ setInterval(broadcastStats, 5000);
 module.exports.io = io;
 
 // --- Security & Middleware ---
+app.set('trust proxy', 1); // Trust first proxy (Nginx)
 app.use(helmet());
 app.use(cors({
-    origin: 'http://localhost:5173',
+    origin: process.env.NODE_ENV === 'production' ? [process.env.APP_URL, 'http://72.155.88.91', 'http://zerotracevpn.com', 'https://zerotracevpn.com'] : 'http://localhost:5173',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -84,17 +86,19 @@ app.use('/api/', networkGuard);
 const apiLimiter = rateLimit({
     windowMs: 1 * 60 * 1000,
     max: 100,
-    message: { error: 'Too many requests from this IP, please try again after a minute' }
+    message: { error: 'Too many requests from this IP, please try again after a minute' },
+    standardHeaders: true,
+    legacyHeaders: false
 });
 app.use('/api/', apiLimiter);
 
 // 2. BRUTE-FORCE GUARD: Strict Limiter for Auth (5 attempts per 15 mins)
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 5,
+    max: 20,
     message: { error: 'Too many login attempts. For security, please try again after 15 minutes.' },
     standardHeaders: true,
-    legacyHeaders: false,
+    legacyHeaders: false
 });
 
 // --- Routes ---
@@ -110,6 +114,7 @@ app.use('/api/vpn', vpnRoutes);
 app.use('/api/oauth', oauthRoutes);
 app.use('/api/user', userSettingsRoutes);
 app.use('/api/admin/site-settings', adminSettingsRoutes);
+app.use('/api/contact', contactRoutes);
 
 app.get('/health', (req, res) => res.status(200).json({ status: 'OK' }));
 

@@ -1,5 +1,4 @@
 const { PrismaClient } = require('@prisma/client');
-const Redis = require('ioredis');
 const dotenv = require('dotenv');
 
 dotenv.config();
@@ -7,10 +6,11 @@ dotenv.config();
 // Initialize Prisma
 const prisma = new PrismaClient();
 
-// Initialize Redis
-const redis = new Redis(process.env.REDIS_URL);
-
-redis.on('connect', () => console.log('🟢 Redis Connected'));
-redis.on('error', (err) => console.error('🔴 Redis Error:', err));
+// Redis disabled for Render deployment without Redis service
+const redis = {
+  get: async () => null,
+  set: async () => null,
+  del: async () => null
+};
 
 module.exports = { prisma, redis };

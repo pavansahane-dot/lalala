@@ -7,7 +7,7 @@ import { useLanguage } from '../context/LanguageContext';
 
 type Tab = 'email' | 'phone';
 
-const GOOGLE_AUTH_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/oauth/google`;
+const GOOGLE_AUTH_URL = `${import.meta.env.VITE_API_URL || '/api'}/oauth/google`;
 
 const passwordRules = [
   { label: 'At least 8 characters',  test: (p: string) => p.length >= 8 },

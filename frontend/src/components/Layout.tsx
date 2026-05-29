@@ -140,14 +140,7 @@ const Layout = () => {
           </div>
         </div>
 
-        {/* Logout */}
-        <div className="px-2 py-2 border-t border-white/10">
-          <button onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2.5 w-full rounded text-sm text-white/60 hover:bg-red-500/20 hover:text-red-300 transition-all">
-            <LogOut className="w-4 h-4 shrink-0" />
-            {t.logout}
-          </button>
-        </div>
+
       </aside>
 
       {/* ── Main content ── */}

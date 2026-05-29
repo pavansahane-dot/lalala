@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /profile
+Disallow: /settings
+Disallow: /billing
+Disallow: /configs
+Disallow: /my-configs
+
+Sitemap: https://zerotracevpn.com/sitemap.xml

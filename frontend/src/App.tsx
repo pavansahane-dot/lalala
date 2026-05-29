@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
+import CookieConsent from './components/CookieConsent';
 
 import Landing from './pages/Landing';
 import Setup from './pages/Setup';
@@ -17,6 +18,9 @@ import MyConfigs from './pages/MyConfigs';
 import Settings from './pages/Settings';
 import Billing from './pages/Billing';
 import Admin from './pages/Admin';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
+import Contact from './pages/Contact';
 
 import AuthCallback from './pages/AuthCallback';
 
@@ -39,6 +43,9 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password"  element={<ResetPassword />} />
         <Route path="/auth/callback"   element={<AuthCallback />} />
+        <Route path="/privacy-policy"  element={<PrivacyPolicy />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
+        <Route path="/contact"         element={<Contact />} />
 
         {/* Protected user dashboard routes - with main Layout */}
         <Route element={<ProtectedRoute />}>
@@ -59,6 +66,7 @@ function App() {
         {/* Catch-all — redirect unknown URLs to landing */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <CookieConsent />
     </Router>
   );
 }

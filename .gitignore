@@ -1,2 +1,48 @@
+# Dependencies
 node_modules/
+package-lock.json
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.azure
+
+# Database
 *.sqlite
+*.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Keys and secrets
+backend/keys/
+*.pem
+*.key
+*.crt
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+.cache/
+.temp/
+tmp/
